@@ -1,15 +1,32 @@
-import { Text, View } from "react-native";
+import { Link } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
 
 export default function Index() {
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text>Edit app/index.tsx to edit this.</Text>
+    <View style={styles.container}>
+      <Text style={styles.text}>Welcome</Text>
+      <Link href={"/signup"} style={styles.button}>Sign Up</Link>
+      <Link href={"/calendar"}>Calendar</Link>
+      <Link href={"/account"}>Accounta</Link>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#25292e',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  text: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  button: {
+    fontSize: 20,
+    textDecorationLine: 'underline',
+    color: '#fff',
+  },
+});
