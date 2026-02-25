@@ -5,9 +5,9 @@ export default function Index() {
   return (
     <View style={styles.container}>
       <Text style={styles.text}>Welcome</Text>
-      <Link href={"/signup"} style={styles.button}>Sign Up</Link>
-      <Link href={"/calendar"}>Calendar</Link>
-      <Link href={"/account"}>Accounta</Link>
+      <Link href={"/login"} style={styles.button}>Log In</Link>
+      <Link href={"/signup"} style={styles.button}>Create Account</Link>
+      <Link href={"/account"} style={styles.button}>Continue without account</Link>
     </View>
   );
 }
