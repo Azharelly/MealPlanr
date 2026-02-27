@@ -8,6 +8,8 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+firebaseConfig.ts
+src/firebase/firebaseConfig.ts
 
 # Native
 .kotlin/
