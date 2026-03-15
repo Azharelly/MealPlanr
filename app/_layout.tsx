@@ -1,36 +1,32 @@
 import { auth } from "@/src/firebase/firebaseConfig";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Slot, useRouter } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 
 export default function RootLayout() {
   const router = useRouter();
-  const segments = useSegments();
-
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      const inAuthGroup = segments[0] === "(auth)";
-
-      // Si está logueado y está en auth -> lo mandamos a tabs (calendario/home)
-      if (user && inAuthGroup) {
-        router.replace("/(tabs)/calendar");
-      }
-
-      // Si NO está logueado y NO está en auth -> lo mandamos a login
-      if (!user && !inAuthGroup) {
-        router.replace("/(auth)/login");
-      }
-
+      setIsLoggedIn(!!user);
       setCheckingAuth(false);
     });
-
     return () => unsub();
-  }, [router, segments]);
+  }, []); // ← sin dependencias, solo corre una vez
 
-  // Pantalla de carga mientras Firebase responde
+  useEffect(() => {
+    if (checkingAuth) return; // espera a que Firebase responda
+
+    if (isLoggedIn) {
+      router.replace("/(tabs)/calendar");
+    } else {
+      router.replace("/");
+    }
+  }, [checkingAuth, isLoggedIn]); // ← solo reacciona a cambios de auth
+
   if (checkingAuth) {
     return (
       <View style={{ flex: 1, backgroundColor: "#25292e", justifyContent: "center", alignItems: "center" }}>
@@ -39,10 +35,5 @@ export default function RootLayout() {
     );
   }
 
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-    </Stack>
-  );
+  return <Slot />;
 }

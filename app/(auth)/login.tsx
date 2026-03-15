@@ -1,21 +1,38 @@
+import { router } from "expo-router";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import {
+    Alert,
     KeyboardAvoidingView,
     Platform,
     Pressable,
     StyleSheet,
     Text,
-    TextInput
+    TextInput,
 } from "react-native";
 
 export default function LoginScreen() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    const handleLogin = () => {
-        console.log("Email:", email);
-        console.log("Password:", password);
-        // aquí después conectamos Firebase
+    const handleLogin = async () => {
+        if (!email || !password) {
+            Alert.alert("Error", "Please enter email and password.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const auth = getAuth();
+            await signInWithEmailAndPassword(auth, email, password);
+            router.replace("/(tabs)/calendar");
+        } catch (e: any) {
+            console.log(e);
+            Alert.alert("Login failed", "Invalid email or password.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -44,8 +61,21 @@ export default function LoginScreen() {
                 secureTextEntry
             />
 
-            <Pressable style={styles.button} onPress={handleLogin}>
-                <Text style={styles.buttonText}>Log In</Text>
+            <Pressable
+                style={[styles.button, loading && { opacity: 0.6 }]}
+                onPress={handleLogin}
+                disabled={loading}
+            >
+                <Text style={styles.buttonText}>
+                    {loading ? "Logging in..." : "Log In"}
+                </Text>
+            </Pressable>
+
+            <Pressable onPress={() => router.push("/(auth)/signup")}>
+                <Text style={styles.linkText}>
+                    Still no account?{" "}
+                    <Text style={styles.linkHighlight}>Create one</Text>
+                </Text>
             </Pressable>
         </KeyboardAvoidingView>
     );
@@ -81,6 +111,15 @@ const styles = StyleSheet.create({
     },
     buttonText: {
         color: "#fff",
+        fontWeight: "600",
+    },
+    linkText: {
+        color: "#999",
+        textAlign: "center",
+        marginTop: 20,
+    },
+    linkHighlight: {
+        color: "#4CAF50",
         fontWeight: "600",
     },
 });
