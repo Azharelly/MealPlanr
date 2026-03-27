@@ -1,64 +1,71 @@
-import { auth } from "@/src/firebase/firebaseConfig";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import React, { useState } from "react";
+import { router } from 'expo-router';
+import { useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Pressable,
     StyleSheet,
     Text,
     TextInput,
     View,
-} from "react-native";
+} from 'react-native';
 
 export default function SignUpScreen() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [confirmPassword, setConfirmPassword] = useState("");
-
-    const [error, setError] = useState("");
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const isValidEmail = (value: string) => {
-        // simple y suficiente para MVP
-        return /\S+@\S+\.\S+/.test(value);
-    };
+    const isValidEmail = (value: string) => /\S+@\S+\.\S+/.test(value);
+
 
     const handleSignUp = async () => {
-        setError("");
+        setError('');
 
         const cleanEmail = email.trim();
 
         if (!cleanEmail || !password || !confirmPassword) {
-            setError("Please fill in all fields.");
+            setError('Please fill in all fields.');
             return;
         }
         if (!isValidEmail(cleanEmail)) {
-            setError("Please enter a valid email.");
+            setError('Please enter a valid email.');
             return;
         }
         if (password.length < 8) {
-            setError("Password must be at least 8 characters.");
+            setError('Password must be at least 8 characters.');
             return;
         }
         if (password !== confirmPassword) {
-            setError("Passwords do not match.");
+            setError('Passwords do not match.');
             return;
         }
 
         try {
             setLoading(true);
-            const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
-            console.log("User created:", cred.user.uid);
-            // redirección la hacemos en el paso del auth guard
+
+            const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: cleanEmail, password }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || 'Could not create account.');
+            }
+
+            // ✅ Alerta de éxito → redirige a login
+            Alert.alert(
+                'Account created! 🎉',
+                'Your account is ready. Please log in to continue.',
+                [{ text: 'Go to Log In', onPress: () => router.replace('/(auth)/login') }]
+            );
+
+            // El _layout.tsx detecta el token y redirige automáticamente
         } catch (e: any) {
-            const code = e?.code;
-
-            if (code === "auth/email-already-in-use") setError("This email is already in use.");
-            else if (code === "auth/invalid-email") setError("Invalid email address.");
-            else if (code === "auth/weak-password") setError("Password is too weak.");
-            else setError("Could not create account. Please try again.");
-
-            console.log("Sign up error:", e);
+            setError(e.message || 'Could not create account. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -120,41 +127,41 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#25292e",
-        justifyContent: "center",
+        backgroundColor: '#25292e',
+        justifyContent: 'center',
         paddingHorizontal: 24,
     },
     title: {
-        color: "#fff",
+        color: '#fff',
         fontSize: 24,
-        fontWeight: "600",
+        fontWeight: '600',
         marginBottom: 20,
-        textAlign: "center",
+        textAlign: 'center',
     },
     input: {
-        backgroundColor: "#1f2228",
+        backgroundColor: '#1f2228',
         borderWidth: 1,
-        borderColor: "#3a3f47",
+        borderColor: '#3a3f47',
         borderRadius: 10,
         paddingHorizontal: 14,
         paddingVertical: 12,
-        color: "#fff",
+        color: '#fff',
         marginBottom: 12,
     },
     button: {
-        backgroundColor: "#3a86ff",
+        backgroundColor: '#E07B39',
         paddingVertical: 12,
         borderRadius: 10,
-        alignItems: "center",
+        alignItems: 'center',
         marginTop: 6,
     },
     buttonText: {
-        color: "#fff",
-        fontWeight: "600",
+        color: '#fff',
+        fontWeight: '600',
         fontSize: 16,
     },
     error: {
-        color: "#ff6b6b",
+        color: '#ff6b6b',
         marginBottom: 8,
     },
 });
