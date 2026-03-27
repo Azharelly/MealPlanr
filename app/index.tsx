@@ -8,7 +8,7 @@ export default function Index() {
       <Link href={"/login"} style={styles.button}>Log In</Link>
       <Link href={"/signup"} style={styles.button}>Create Account</Link>
       <Link href={"/account"} style={styles.button}>Continue without account</Link>
-      <Link href={"/(account)"} style={styles.button}>Continue without account</Link>
+      <Link href={"/"} style={styles.button}>Continue without account</Link>
     </View>
   );
 }

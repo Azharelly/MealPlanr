@@ -1,5 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -19,7 +19,7 @@ import {
 const ORANGE = "#E07B39";
 const USDA_API_KEY = process.env.EXPO_PUBLIC_USDA_API_KEY;
 
-interface Ingredient {
+export interface Ingredient {
     id: string;
     name: string;
     amount: string;
@@ -35,6 +35,7 @@ export interface Recipe {
     name: string;
     time: string;
     image?: string | null;
+    servings: number;
     ingredients: Ingredient[];
     steps: string[];
     totalCalories: number;
@@ -47,6 +48,7 @@ interface Props {
     visible: boolean;
     onClose: () => void;
     onSave: (recipe: Recipe) => void;
+    editRecipe?: Recipe | null; // ← receta a editar (opcional)
 }
 
 async function searchUSDA(ingredientName: string): Promise<any | null> {
@@ -70,16 +72,43 @@ function getNutrient(food: any, name: string): number {
     return nutrient?.value ?? 0;
 }
 
-export default function RecipeForm({ visible, onClose, onSave }: Props) {
+export default function RecipeForm({ visible, onClose, onSave, editRecipe }: Props) {
     const [name, setName] = useState("");
     const [time, setTime] = useState("");
     const [image, setImage] = useState<string | null>(null);
+    const [servings, setServings] = useState(1);
     const [steps, setSteps] = useState<string[]>([""]);
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [ingName, setIngName] = useState("");
     const [ingAmount, setIngAmount] = useState("");
     const [ingUnit, setIngUnit] = useState("g");
     const [searchingUSDA, setSearchingUSDA] = useState(false);
+
+    // Precarga datos si estamos en modo edición
+    useEffect(() => {
+        if (editRecipe) {
+            setName(editRecipe.name);
+            setTime(editRecipe.time);
+            setImage(editRecipe.image ?? null);
+            setServings(editRecipe.servings ?? 1);
+            setIngredients(editRecipe.ingredients);
+            setSteps(editRecipe.steps.length > 0 ? editRecipe.steps : [""]);
+        } else {
+            resetForm();
+        }
+    }, [editRecipe, visible]);
+
+    const resetForm = () => {
+        setName("");
+        setTime("");
+        setImage(null);
+        setServings(1);
+        setSteps([""]);
+        setIngredients([]);
+        setIngName("");
+        setIngAmount("");
+        setIngUnit("g");
+    };
 
     const totalCalories = ingredients.reduce((s, i) => s + i.calories, 0);
     const totalProtein = ingredients.reduce((s, i) => s + i.protein, 0);
@@ -98,9 +127,7 @@ export default function RecipeForm({ visible, onClose, onSave }: Props) {
             aspect: [4, 3],
             quality: 0.8,
         });
-        if (!result.canceled) {
-            setImage(result.assets[0].uri);
-        }
+        if (!result.canceled) setImage(result.assets[0].uri);
     };
 
     const handleAddIngredient = async () => {
@@ -162,10 +189,11 @@ export default function RecipeForm({ visible, onClose, onSave }: Props) {
         }
 
         const recipe: Recipe = {
-            id: Date.now().toString(),
+            id: editRecipe?.id ?? Date.now().toString(),
             name: name.trim(),
             time: time.trim() || "N/A",
             image: image ?? null,
+            servings,
             ingredients,
             steps: steps.filter(s => s.trim()),
             totalCalories,
@@ -175,11 +203,7 @@ export default function RecipeForm({ visible, onClose, onSave }: Props) {
         };
 
         onSave(recipe);
-        setName("");
-        setTime("");
-        setImage(null);
-        setSteps([""]);
-        setIngredients([]);
+        resetForm();
     };
 
     return (
@@ -194,7 +218,9 @@ export default function RecipeForm({ visible, onClose, onSave }: Props) {
                         <Pressable onPress={onClose}>
                             <Text style={styles.cancelBtn}>Cancel</Text>
                         </Pressable>
-                        <Text style={styles.headerTitle}>New Recipe</Text>
+                        <Text style={styles.headerTitle}>
+                            {editRecipe ? "Edit Recipe" : "New Recipe"}
+                        </Text>
                         <Pressable onPress={handleSave}>
                             <Text style={styles.saveBtn}>Save</Text>
                         </Pressable>
@@ -218,6 +244,26 @@ export default function RecipeForm({ visible, onClose, onSave }: Props) {
                             value={time}
                             onChangeText={setTime}
                         />
+
+                        {/* Porciones */}
+                        <View style={styles.servingsRow}>
+                            <Text style={styles.servingsLabel}>Servings</Text>
+                            <View style={styles.servingsControls}>
+                                <Pressable
+                                    style={styles.servingsBtn}
+                                    onPress={() => setServings(s => Math.max(1, s - 1))}
+                                >
+                                    <Text style={styles.servingsBtnText}>−</Text>
+                                </Pressable>
+                                <Text style={styles.servingsValue}>{servings}</Text>
+                                <Pressable
+                                    style={styles.servingsBtn}
+                                    onPress={() => setServings(s => s + 1)}
+                                >
+                                    <Text style={styles.servingsBtnText}>+</Text>
+                                </Pressable>
+                            </View>
+                        </View>
 
                         {/* Imagen */}
                         <Pressable style={styles.imagePicker} onPress={handlePickImage}>
@@ -289,13 +335,20 @@ export default function RecipeForm({ visible, onClose, onSave }: Props) {
                         {/* Total nutricional */}
                         {ingredients.length > 0 && (
                             <View style={styles.nutritionBox}>
-                                <Text style={styles.nutritionTitle}>Nutritional Total</Text>
+                                <Text style={styles.nutritionTitle}>
+                                    Nutritional Total · {servings} serving{servings > 1 ? "s" : ""}
+                                </Text>
                                 <View style={styles.nutritionRow}>
-                                    <NutrientBadge label="Calories" value={`${totalCalories} kcal`} />
-                                    <NutrientBadge label="Protein" value={`${totalProtein}g`} />
-                                    <NutrientBadge label="Carbs" value={`${totalCarbs}g`} />
-                                    <NutrientBadge label="Fat" value={`${totalFat}g`} />
+                                    <NutrientBadge label="Calories" value={`${totalCalories}`} unit="kcal" />
+                                    <NutrientBadge label="Protein" value={`${totalProtein}`} unit="g" />
+                                    <NutrientBadge label="Carbs" value={`${totalCarbs}`} unit="g" />
+                                    <NutrientBadge label="Fat" value={`${totalFat}`} unit="g" />
                                 </View>
+                                {servings > 1 && (
+                                    <Text style={styles.perServingNote}>
+                                        Per serving: {Math.round(totalCalories / servings)} kcal · {Math.round(totalProtein / servings * 10) / 10}g protein · {Math.round(totalCarbs / servings * 10) / 10}g carbs · {Math.round(totalFat / servings * 10) / 10}g fat
+                                    </Text>
+                                )}
                             </View>
                         )}
 
@@ -330,10 +383,11 @@ export default function RecipeForm({ visible, onClose, onSave }: Props) {
     );
 }
 
-function NutrientBadge({ label, value }: { label: string; value: string }) {
+function NutrientBadge({ label, value, unit }: { label: string; value: string; unit: string }) {
     return (
         <View style={styles.badge}>
             <Text style={styles.badgeValue}>{value}</Text>
+            <Text style={styles.badgeUnit}>{unit}</Text>
             <Text style={styles.badgeLabel}>{label}</Text>
         </View>
     );
@@ -354,130 +408,55 @@ const styles = StyleSheet.create({
     cancelBtn: { fontSize: 16, color: "#888" },
     saveBtn: { fontSize: 16, color: ORANGE, fontWeight: "700" },
     scrollContent: { padding: 16, paddingBottom: 60 },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: "#222",
-        marginTop: 20,
-        marginBottom: 10,
-    },
-    input: {
+    sectionTitle: { fontSize: 16, fontWeight: "700", color: "#222", marginTop: 20, marginBottom: 10 },
+    input: { backgroundColor: "#f5f5f5", borderRadius: 10, padding: 12, fontSize: 15, color: "#222", marginBottom: 10 },
+    servingsRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
         backgroundColor: "#f5f5f5",
         borderRadius: 10,
         padding: 12,
-        fontSize: 15,
-        color: "#222",
         marginBottom: 10,
     },
-    imagePicker: {
-        width: "100%",
-        height: 180,
-        borderRadius: 12,
-        overflow: "hidden",
-        marginBottom: 10,
-        backgroundColor: "#f5f5f5",
-        borderWidth: 1.5,
-        borderColor: "#e0e0e0",
-        borderStyle: "dashed",
-    },
-    imagePreview: {
-        width: "100%",
-        height: "100%",
-    },
-    imagePlaceholderBox: {
-        flex: 1,
+    servingsLabel: { fontSize: 15, color: "#222", fontWeight: "500" },
+    servingsControls: { flexDirection: "row", alignItems: "center", gap: 16 },
+    servingsBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: ORANGE,
         justifyContent: "center",
         alignItems: "center",
     },
+    servingsBtnText: { color: "#fff", fontSize: 20, fontWeight: "300", marginTop: -2 },
+    servingsValue: { fontSize: 18, fontWeight: "700", color: "#222", minWidth: 24, textAlign: "center" },
+    imagePicker: { width: "100%", height: 180, borderRadius: 12, overflow: "hidden", marginBottom: 10, backgroundColor: "#f5f5f5", borderWidth: 1.5, borderColor: "#e0e0e0", borderStyle: "dashed" },
+    imagePreview: { width: "100%", height: "100%" },
+    imagePlaceholderBox: { flex: 1, justifyContent: "center", alignItems: "center" },
     imagePickerIcon: { fontSize: 32, marginBottom: 8 },
     imagePickerText: { color: "#aaa", fontSize: 14 },
-    addIngredientBox: {
-        backgroundColor: "#fff8f4",
-        borderRadius: 12,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: "#f0e0d0",
-        marginTop: 8,
-    },
-    amountRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginBottom: 8,
-    },
-    unitBtn: {
-        backgroundColor: ORANGE,
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: 10,
-    },
+    addIngredientBox: { backgroundColor: "#fff8f4", borderRadius: 12, padding: 12, borderWidth: 1, borderColor: "#f0e0d0", marginTop: 8 },
+    amountRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
+    unitBtn: { backgroundColor: ORANGE, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10 },
     unitBtnText: { color: "#fff", fontWeight: "600" },
-    addIngBtn: {
-        backgroundColor: ORANGE,
-        borderRadius: 10,
-        paddingVertical: 12,
-        alignItems: "center",
-    },
+    addIngBtn: { backgroundColor: ORANGE, borderRadius: 10, paddingVertical: 12, alignItems: "center" },
     addIngBtnText: { color: "#fff", fontWeight: "600" },
-    ingredientRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "#fafafa",
-        borderRadius: 10,
-        padding: 12,
-        marginBottom: 8,
-        borderWidth: 1,
-        borderColor: "#f0f0f0",
-    },
+    ingredientRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#fafafa", borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#f0f0f0" },
     ingredientInfo: { flex: 1 },
     ingredientName: { fontSize: 14, fontWeight: "600", color: "#222" },
     ingredientNutrients: { fontSize: 12, color: "#888", marginTop: 2 },
     removeBtn: { fontSize: 16, color: "#ccc", paddingLeft: 8 },
-    nutritionBox: {
-        backgroundColor: "#fff8f4",
-        borderRadius: 12,
-        padding: 14,
-        marginTop: 12,
-        borderWidth: 1,
-        borderColor: "#f0e0d0",
-    },
-    nutritionTitle: {
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#222",
-        marginBottom: 10,
-    },
-    nutritionRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-    },
+    nutritionBox: { backgroundColor: "#fff8f4", borderRadius: 12, padding: 14, marginTop: 12, borderWidth: 1, borderColor: "#f0e0d0" },
+    nutritionTitle: { fontSize: 14, fontWeight: "700", color: "#222", marginBottom: 10 },
+    nutritionRow: { flexDirection: "row", justifyContent: "space-between" },
     badge: { alignItems: "center" },
     badgeValue: { fontSize: 15, fontWeight: "700", color: ORANGE },
+    badgeUnit: { fontSize: 11, color: ORANGE },
     badgeLabel: { fontSize: 11, color: "#888", marginTop: 2 },
-    stepRow: {
-        flexDirection: "row",
-        alignItems: "flex-start",
-        gap: 8,
-        marginBottom: 8,
-    },
-    stepNumber: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: ORANGE,
-        color: "#fff",
-        textAlign: "center",
-        lineHeight: 24,
-        fontSize: 12,
-        fontWeight: "700",
-        marginTop: 10,
-    },
-    addStepBtn: {
-        paddingVertical: 10,
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: "#f0f0f0",
-        borderRadius: 10,
-        marginTop: 4,
-    },
+    perServingNote: { fontSize: 12, color: "#888", marginTop: 10, textAlign: "center" },
+    stepRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 8 },
+    stepNumber: { width: 24, height: 24, borderRadius: 12, backgroundColor: ORANGE, color: "#fff", textAlign: "center", lineHeight: 24, fontSize: 12, fontWeight: "700", marginTop: 10 },
+    addStepBtn: { paddingVertical: 10, alignItems: "center", borderWidth: 1, borderColor: "#f0f0f0", borderRadius: 10, marginTop: 4 },
     addStepBtnText: { color: "#888", fontSize: 14 },
 });

@@ -1,4 +1,6 @@
-import RecipeForm from "@/components/RecipeForm";
+import GroupDetail, { Group } from "@/components/GroupDetail";
+import RecipeDetail from "@/components/RecipeDetail";
+import RecipeForm, { Recipe } from "@/components/RecipeForm";
 import React, { useState } from "react";
 import {
     Dimensions,
@@ -17,49 +19,31 @@ const ORANGE = "#E07B39";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-interface Ingredient {
-    id: string;
-    name: string;
-    amount: string;
-    unit: string;
-    calories: number;
-    protein: number;
-    fat: number;
-    carbs: number;
-}
-
-interface Recipe {
-    id: string;
-    name: string;
-    time: string;
-    totalCalories: number;
-    totalProtein: number;
-    totalFat: number;
-    totalCarbs: number;
-    ingredients: Ingredient[];
-    steps: string[];
-    image?: string | null;
-}
-
 const SAMPLE_RECIPES: Recipe[] = [
-    { id: "1", name: "Avocado Toast", time: "10 min", totalCalories: 320, totalProtein: 8, totalFat: 12, totalCarbs: 40, ingredients: [], steps: [] },
-    { id: "2", name: "Grilled Chicken Salad", time: "25 min", totalCalories: 450, totalProtein: 35, totalFat: 15, totalCarbs: 20, ingredients: [], steps: [] },
-    { id: "3", name: "Oatmeal with Berries", time: "15 min", totalCalories: 280, totalProtein: 10, totalFat: 5, totalCarbs: 50, ingredients: [], steps: [] },
-    { id: "4", name: "Pasta Bolognese", time: "40 min", totalCalories: 620, totalProtein: 30, totalFat: 20, totalCarbs: 70, ingredients: [], steps: [] },
+    { id: "1", name: "Avocado Toast", time: "10 min", totalCalories: 320, totalProtein: 8, totalFat: 12, totalCarbs: 40, ingredients: [], steps: [], image: null, servings: 1 },
+    { id: "2", name: "Grilled Chicken Salad", time: "25 min", totalCalories: 450, totalProtein: 35, totalFat: 15, totalCarbs: 20, ingredients: [], steps: [], image: null, servings: 1 },
+    { id: "3", name: "Oatmeal with Berries", time: "15 min", totalCalories: 280, totalProtein: 10, totalFat: 5, totalCarbs: 50, ingredients: [], steps: [], image: null, servings: 1 },
+    { id: "4", name: "Pasta Bolognese", time: "40 min", totalCalories: 620, totalProtein: 30, totalFat: 20, totalCarbs: 70, ingredients: [], steps: [], image: null, servings: 1 },
 ];
 
-const SAMPLE_GROUPS = [
-    { id: "1", name: "Breakfast Ideas", recipeCount: 2 },
-    { id: "2", name: "Quick Dinners", recipeCount: 1 },
+const SAMPLE_GROUPS: Group[] = [
+    { id: "1", name: "Breakfast Ideas", image: null, recipeIds: [] },
+    { id: "2", name: "Quick Dinners", image: null, recipeIds: [] },
 ];
 
 export default function CookbooksScreen() {
     const [search, setSearch] = useState("");
-    const [groups, setGroups] = useState(SAMPLE_GROUPS);
+    const [groups, setGroups] = useState<Group[]>(SAMPLE_GROUPS);
     const [recipes, setRecipes] = useState<Recipe[]>(SAMPLE_RECIPES);
     const [showCreateGroup, setShowCreateGroup] = useState(false);
     const [newGroupName, setNewGroupName] = useState("");
     const [showForm, setShowForm] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
+    const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+    const [showDetail, setShowDetail] = useState(false);
+    const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+    const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+    const [showGroupDetail, setShowGroupDetail] = useState(false);
 
     const filteredRecipes = recipes.filter(r =>
         r.name.toLowerCase().includes(search.toLowerCase())
@@ -70,7 +54,8 @@ export default function CookbooksScreen() {
         setGroups(prev => [...prev, {
             id: Date.now().toString(),
             name: newGroupName.trim(),
-            recipeCount: 0,
+            image: null,
+            recipeIds: [],
         }]);
         setNewGroupName("");
         setShowCreateGroup(false);
@@ -115,13 +100,27 @@ export default function CookbooksScreen() {
                     </Pressable>
 
                     {groups.map(group => (
-                        <Pressable key={group.id} style={styles.card}>
+                        <Pressable
+                            key={group.id}
+                            style={styles.card}
+                            onPress={() => {
+                                setSelectedGroup(group);
+                                setShowGroupDetail(true);
+                            }}
+                        >
                             <View style={styles.groupImagePlaceholder}>
-                                <Text style={styles.groupEmoji}>📁</Text>
+                                {group.image ? (
+                                    <Image
+                                        source={{ uri: group.image }}
+                                        style={{ width: "100%", height: "100%" }}
+                                    />
+                                ) : (
+                                    <Text style={styles.groupEmoji}>📁</Text>
+                                )}
                             </View>
                             <View style={styles.cardInfo}>
                                 <Text style={styles.cardName} numberOfLines={2}>{group.name}</Text>
-                                <Text style={styles.cardMetaText}>{group.recipeCount} recipes</Text>
+                                <Text style={styles.cardMetaText}>{group.recipeIds.length} recipes</Text>
                             </View>
                         </Pressable>
                     ))}
@@ -136,7 +135,14 @@ export default function CookbooksScreen() {
                 ) : (
                     <View style={styles.grid}>
                         {filteredRecipes.map(recipe => (
-                            <Pressable key={recipe.id} style={styles.card}>
+                            <Pressable
+                                key={recipe.id}
+                                style={styles.card}
+                                onPress={() => {
+                                    setSelectedRecipe(recipe);
+                                    setShowDetail(true);
+                                }}
+                            >
                                 <View style={styles.imagePlaceholder}>
                                     {recipe.image ? (
                                         <Image
@@ -160,9 +166,64 @@ export default function CookbooksScreen() {
                 )}
             </ScrollView>
 
+            {/* Menú flotante */}
+            {showMenu && (
+                <>
+                    <Pressable
+                        style={styles.menuBackdrop}
+                        onPress={() => setShowMenu(false)}
+                    />
+                    <View style={styles.floatingMenu}>
+                        <Pressable
+                            style={styles.menuItem}
+                            onPress={() => {
+                                setShowMenu(false);
+                                setEditingRecipe(null);
+                                setShowForm(true);
+                            }}
+                        >
+                            <Text style={styles.menuItemIcon}>✏️</Text>
+                            <View>
+                                <Text style={styles.menuItemLabel}>Add manually</Text>
+                                <Text style={styles.menuItemSub}>Create a recipe from scratch</Text>
+                            </View>
+                        </Pressable>
+
+                        <View style={styles.menuDivider} />
+
+                        <Pressable
+                            style={styles.menuItem}
+                            onPress={() => setShowMenu(false)}
+                        >
+                            <Text style={styles.menuItemIcon}>📄</Text>
+                            <View>
+                                <Text style={styles.menuItemLabel}>Extract from PDF</Text>
+                                <Text style={styles.menuItemSub}>Coming soon</Text>
+                            </View>
+                        </Pressable>
+
+                        <View style={styles.menuDivider} />
+
+                        <Pressable
+                            style={styles.menuItem}
+                            onPress={() => setShowMenu(false)}
+                        >
+                            <Text style={styles.menuItemIcon}>🔗</Text>
+                            <View>
+                                <Text style={styles.menuItemLabel}>Import from URL</Text>
+                                <Text style={styles.menuItemSub}>Coming soon</Text>
+                            </View>
+                        </Pressable>
+                    </View>
+                </>
+            )}
+
             {/* Botón + */}
-            <Pressable style={styles.fab} onPress={() => setShowForm(true)}>
-                <Text style={styles.fabText}>+</Text>
+            <Pressable
+                style={styles.fab}
+                onPress={() => setShowMenu(prev => !prev)}
+            >
+                <Text style={[styles.fabText, showMenu && { transform: [{ rotate: "45deg" }] }]}>+</Text>
             </Pressable>
 
             {/* Modal crear grupo */}
@@ -198,13 +259,51 @@ export default function CookbooksScreen() {
                 </View>
             </Modal>
 
-            {/* Formulario crear receta */}
+            {/* Formulario crear/editar receta */}
             <RecipeForm
                 visible={showForm}
-                onClose={() => setShowForm(false)}
-                onSave={(recipe) => {
-                    setRecipes(prev => [...prev, recipe]);
+                editRecipe={editingRecipe}
+                onClose={() => {
                     setShowForm(false);
+                    setEditingRecipe(null);
+                }}
+                onSave={(recipe) => {
+                    if (editingRecipe) {
+                        setRecipes(prev => prev.map(r => r.id === recipe.id ? recipe : r));
+                    } else {
+                        setRecipes(prev => [...prev, recipe]);
+                    }
+                    setShowForm(false);
+                    setEditingRecipe(null);
+                }}
+            />
+
+            {/* Detalle de receta */}
+            <RecipeDetail
+                visible={showDetail}
+                recipe={selectedRecipe}
+                onClose={() => setShowDetail(false)}
+                onEdit={() => {
+                    setEditingRecipe(selectedRecipe);
+                    setShowDetail(false);
+                    setShowForm(true);
+                }}
+            />
+
+            {/* Detalle de grupo */}
+            <GroupDetail
+                visible={showGroupDetail}
+                group={selectedGroup}
+                allRecipes={recipes}
+                onClose={() => setShowGroupDetail(false)}
+                onUpdateGroup={(updatedGroup) => {
+                    setGroups(prev => prev.map(g => g.id === updatedGroup.id ? updatedGroup : g));
+                    setSelectedGroup(updatedGroup);
+                }}
+                onCreateRecipe={() => {
+                    setShowGroupDetail(false);
+                    setEditingRecipe(null);
+                    setShowForm(true);
                 }}
             />
 
@@ -228,7 +327,7 @@ const styles = StyleSheet.create({
     createGroupCard: { justifyContent: "center", alignItems: "center", height: CARD_WIDTH * 1.1, borderWidth: 1.5, borderColor: ORANGE, borderStyle: "dashed", backgroundColor: "#fff8f4" },
     createGroupIcon: { fontSize: 32, color: ORANGE, marginBottom: 6 },
     createGroupText: { fontSize: 13, fontWeight: "600", color: ORANGE },
-    groupImagePlaceholder: { width: "100%", height: CARD_WIDTH * 0.75, backgroundColor: "#f5f0eb", justifyContent: "center", alignItems: "center" },
+    groupImagePlaceholder: { width: "100%", height: CARD_WIDTH * 0.75, backgroundColor: "#f5f0eb", justifyContent: "center", alignItems: "center", overflow: "hidden" },
     groupEmoji: { fontSize: 36 },
     imagePlaceholder: { width: "100%", height: CARD_WIDTH * 0.75, backgroundColor: "#f5f0eb", justifyContent: "center", alignItems: "center" },
     imagePlaceholderText: { fontSize: 36 },
@@ -238,6 +337,13 @@ const styles = StyleSheet.create({
     cardMetaText: { fontSize: 11, color: "#888" },
     emptyState: { alignItems: "center", paddingVertical: 32 },
     emptyText: { color: "#aaa", fontSize: 15 },
+    menuBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "transparent" },
+    floatingMenu: { position: "absolute", bottom: 90, right: 24, backgroundColor: "#fff", borderRadius: 16, paddingVertical: 8, width: 240, elevation: 8, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+    menuItem: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
+    menuItemIcon: { fontSize: 20 },
+    menuItemLabel: { fontSize: 14, fontWeight: "600", color: "#222" },
+    menuItemSub: { fontSize: 12, color: "#aaa", marginTop: 1 },
+    menuDivider: { height: 1, backgroundColor: "#f0f0f0", marginHorizontal: 16 },
     fab: { position: "absolute", bottom: 24, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: ORANGE, justifyContent: "center", alignItems: "center", elevation: 6, shadowColor: ORANGE, shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
     fabText: { color: "#fff", fontSize: 28, fontWeight: "300", marginTop: -2 },
     modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.4)" },

@@ -1,6 +1,6 @@
-import { router } from "expo-router";
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { useState } from "react";
+import { useAuth } from '@/src/context/AuthContext';
+import { router } from 'expo-router';
+import { useState } from 'react';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -9,27 +9,26 @@ import {
     StyleSheet,
     Text,
     TextInput,
-} from "react-native";
+} from 'react-native';
 
 export default function LoginScreen() {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const { login } = useAuth();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async () => {
         if (!email || !password) {
-            Alert.alert("Error", "Please enter email and password.");
+            Alert.alert('Error', 'Please enter email and password.');
             return;
         }
 
         setLoading(true);
         try {
-            const auth = getAuth();
-            await signInWithEmailAndPassword(auth, email, password);
-            router.replace("/(tabs)/calendar");
+            await login(email.trim(), password);
+            // El _layout.tsx detecta el token y redirige automáticamente
         } catch (e: any) {
-            console.log(e);
-            Alert.alert("Login failed", "Invalid email or password.");
+            Alert.alert('Login failed', e.message || 'Invalid email or password.');
         } finally {
             setLoading(false);
         }
@@ -38,7 +37,7 @@ export default function LoginScreen() {
     return (
         <KeyboardAvoidingView
             style={styles.container}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <Text style={styles.title}>Log In</Text>
 
@@ -67,13 +66,13 @@ export default function LoginScreen() {
                 disabled={loading}
             >
                 <Text style={styles.buttonText}>
-                    {loading ? "Logging in..." : "Log In"}
+                    {loading ? 'Logging in...' : 'Log In'}
                 </Text>
             </Pressable>
 
-            <Pressable onPress={() => router.push("/(auth)/signup")}>
+            <Pressable onPress={() => router.push('/(auth)/signup')}>
                 <Text style={styles.linkText}>
-                    Still no account?{" "}
+                    Still no account?{' '}
                     <Text style={styles.linkHighlight}>Create one</Text>
                 </Text>
             </Pressable>
@@ -84,42 +83,42 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#25292e",
-        justifyContent: "center",
+        backgroundColor: '#25292e',
+        justifyContent: 'center',
         paddingHorizontal: 30,
     },
     title: {
         fontSize: 28,
-        fontWeight: "700",
-        color: "#fff",
+        fontWeight: '700',
+        color: '#fff',
         marginBottom: 30,
-        textAlign: "center",
+        textAlign: 'center',
     },
     input: {
-        backgroundColor: "#333",
-        color: "#fff",
+        backgroundColor: '#333',
+        color: '#fff',
         padding: 15,
         borderRadius: 10,
         marginBottom: 15,
     },
     button: {
-        backgroundColor: "#4CAF50",
+        backgroundColor: '#4CAF50',
         padding: 15,
         borderRadius: 10,
-        alignItems: "center",
+        alignItems: 'center',
         marginTop: 10,
     },
     buttonText: {
-        color: "#fff",
-        fontWeight: "600",
+        color: '#fff',
+        fontWeight: '600',
     },
     linkText: {
-        color: "#999",
-        textAlign: "center",
+        color: '#999',
+        textAlign: 'center',
         marginTop: 20,
     },
     linkHighlight: {
-        color: "#4CAF50",
-        fontWeight: "600",
+        color: '#4CAF50',
+        fontWeight: '600',
     },
 });
