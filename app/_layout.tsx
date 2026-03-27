@@ -1,39 +1,39 @@
-import { auth } from "@/src/firebase/firebaseConfig";
-import { Slot, useRouter } from "expo-router";
-import { onAuthStateChanged } from "firebase/auth";
-import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { AuthProvider, useAuth } from '@/src/context/AuthContext';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 
-export default function RootLayout() {
+function RootNavigator() {
+  const { token, isLoading } = useAuth();
   const router = useRouter();
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const segments = useSegments();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      setIsLoggedIn(!!user);
-      setCheckingAuth(false);
-    });
-    return () => unsub();
-  }, []); // ← sin dependencias, solo corre una vez
-
-  useEffect(() => {
-    if (checkingAuth) return; // espera a que Firebase responda
-
-    if (isLoggedIn) {
-      router.replace("/(tabs)/calendar");
-    } else {
-      router.replace("/");
+    if (isLoading) return;
+    const inAuthGroup = segments[0] === '(auth)';
+    const inTabsGroup = segments[0] === '(tabs)';
+    if (token && !inTabsGroup) {
+      router.replace('/(tabs)/calendar');
+    } else if (token && !inTabsGroup) {
+      router.replace('/(auth)/login');
     }
-  }, [checkingAuth, isLoggedIn]); // ← solo reacciona a cambios de auth
+  }, [isLoading, token, segments]);
 
-  if (checkingAuth) {
+  if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: "#25292e", justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator />
+      <View style={{ flex: 1, backgroundColor: '#25292e', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color="#E07B39" />
       </View>
     );
   }
 
   return <Slot />;
+}
+
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RootNavigator />
+    </AuthProvider>
+  );
 }
