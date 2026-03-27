@@ -1,6 +1,6 @@
+import { useAuth } from '@/src/context/AuthContext';
 import { router, useFocusEffect } from "expo-router";
-import { getAuth, signOut } from "firebase/auth";
-import React, { useMemo, useRef } from "react";
+import React, { useRef } from "react";
 import {
     Alert,
     Animated,
@@ -17,8 +17,8 @@ export default function AccountScreen() {
     const slideAnim = useRef(new Animated.Value(DRAWER_WIDTH)).current;
     const [open, setOpen] = React.useState(false);
 
-    const auth = useMemo(() => getAuth(), []);
-    const user = auth.currentUser;
+    // ✅ JWT en lugar de Firebase
+    const { user, logout } = useAuth();
     const userEmail = user?.email ?? "Unknown user";
 
     useFocusEffect(
@@ -42,10 +42,9 @@ export default function AccountScreen() {
 
     const handleLogout = async () => {
         try {
-            await signOut(auth);
-            router.replace("/");
+            await logout();          // ✅ usa logout del AuthContext
+            router.replace('/');
         } catch (e) {
-            console.log(e);
             Alert.alert("Logout failed", "Please try again.");
         }
     };
@@ -92,7 +91,6 @@ export default function AccountScreen() {
                 <View style={styles.divider} />
 
                 {user ? (
-
                     <MenuItem
                         label="Log out"
                         danger
@@ -104,7 +102,6 @@ export default function AccountScreen() {
                         }}
                     />
                 ) : (
-
                     <>
                         <MenuItem
                             label="Log In"
@@ -120,6 +117,7 @@ export default function AccountScreen() {
         </View>
     );
 }
+
 
 function MenuItem({ label, onPress, danger }: {
     label: string;
